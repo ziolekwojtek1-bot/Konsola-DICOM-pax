@@ -1,0 +1,13 @@
+# Publiczny dostęp przez HTTPS. Certyfikat Let's Encrypt pobiera się automatycznie
+# dla domeny z PACS_DOMAIN (np. pacs.oczamielektroradiologa.pl - rekord DNS A na IP serwera).
+{$PACS_DOMAIN} {
+    encode gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+    reverse_proxy nginx:80
+}

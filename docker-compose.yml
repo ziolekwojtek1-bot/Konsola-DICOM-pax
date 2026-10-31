@@ -1,0 +1,79 @@
+# Wewnętrzny system PACS. Wszystkie porty są przypięte do adresu w sieci szpitalnej (BIND_IP),
+# nic nie jest wystawione publicznie. PostgreSQL i Orthanc REST są dostępne tylko w sieci dockera.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: pacs_app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      retries: 20
+
+  orthanc:
+    image: orthancteam/orthanc:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # odbiór DICOM C-STORE z aparatów pracowni diagnostycznej
+      - "${BIND_IP}:${DICOM_PORT:-4242}:4242"
+    environment:
+      ORTHANC__NAME: PACS-WEWNETRZNY
+      ORTHANC__DICOM_AET: ${DICOM_AET:-PACS}
+      ORTHANC__DICOM_PORT: 4242
+      ORTHANC__STABLE_AGE: 60
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: '{"${ORTHANC_USER}": "${ORTHANC_PASSWORD}"}'
+      # Aparaty uprawnione do wysyłki (AET, IP, port), np. {"CT1": ["CT1", "10.0.5.21", 104]}
+      ORTHANC__DICOM_MODALITIES: ${DICOM_MODALITIES:-{}}
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: ${DICOM_ALWAYS_ALLOW_STORE:-true}
+      ORTHANC__DICOM_CHECK_CALLED_AET: "true"
+      POSTGRESQL_PLUGIN_ENABLED: "true"
+      ORTHANC__POSTGRESQL__HOST: postgres
+      ORTHANC__POSTGRESQL__DATABASE: orthanc
+      ORTHANC__POSTGRESQL__USERNAME: ${POSTGRES_USER}
+      ORTHANC__POSTGRESQL__PASSWORD: ${POSTGRES_PASSWORD}
+      ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
+      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC__OHIF__DATA_SOURCE: dicom-web
+    volumes:
+      - orthanc-storage:/var/lib/orthanc/db
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orthanc:
+        condition: service_started
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/pacs_app
+      ORTHANC_URL: http://orthanc:8042
+
+  nginx:
+    image: nginx:1.27
+    restart: unless-stopped
+    depends_on: [backend, orthanc]
+    ports:
+      - "${BIND_IP}:${HTTP_PORT:-80}:80"
+    environment:
+      ORTHANC_BASIC_AUTH: ${ORTHANC_BASIC_AUTH}
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/htpasswd:/etc/nginx/htpasswd:ro
+
+volumes:
+  pgdata:
+  orthanc-storage:

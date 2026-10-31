@@ -1,0 +1,13 @@
+# Wersja pokazowa (dane fikcyjne). Razem z wariantem publicznym:
+# docker compose -f docker-compose.yml -f docker-compose.public.yml -f docker-compose.demo.yml up -d
+services:
+  backend:
+    environment:
+      DEMO_MODE: "true"
+  demo-loader:
+    build:
+      context: ./tools
+      dockerfile: Dockerfile.demo
+    depends_on: [orthanc, backend]
+    restart: "no"
+    profiles: ["load"]

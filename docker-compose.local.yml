@@ -1,0 +1,10 @@
+# Tryb deweloperski: backend uruchamiany poza Dockerem (uvicorn na hoście, port 8000).
+# docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres orthanc nginx
+services:
+  postgres:
+    ports: ["127.0.0.1:5432:5432"]
+  orthanc:
+    ports: ["127.0.0.1:8042:8042"]
+  nginx:
+    depends_on: !reset [orthanc]
+    extra_hosts: ["backend:host-gateway"]

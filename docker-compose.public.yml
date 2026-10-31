@@ -1,0 +1,21 @@
+# Wariant dla serwera w internecie (VPS): HTTPS przez Caddy, nginx niedostępny bezpośrednio.
+# docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+# Port DICOM 4242 otwórz w zaporze WYŁĄCZNIE dla publicznego IP pracowni (lub użyj VPN).
+services:
+  nginx:
+    ports: !reset []
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [nginx]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PACS_DOMAIN: ${PACS_DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
+volumes:
+  caddy-data:
