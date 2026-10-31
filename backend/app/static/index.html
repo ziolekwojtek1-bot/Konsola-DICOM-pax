@@ -318,7 +318,7 @@ async function openStudy(id) {
         <button class="small" onclick="saveAsTemplate()">Zapisz jako szablon</button>
       </div>
       <textarea id="report">${esc(s.report)}</textarea>
-      <label class="row"><input type="checkbox" id="critical">
+      <label style="display:block;margin:10px 0"><input type="checkbox" id="critical">
         <b>Wynik zagrażający życiu</b> – natychmiast powiadom lekarza prowadzącego (z eskalacją)</label>
       <div class="row"><button class="primary" onclick="saveReport(${s.id})">Zapisz opis</button>
         ${s.reported_at ? `<small>Opisał ${who(s.reported_by)} · ${when(s.reported_at)}</small>` : ""}</div>
