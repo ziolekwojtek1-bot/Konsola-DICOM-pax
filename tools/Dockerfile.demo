@@ -1,0 +1,5 @@
+# Jednorazowy "aparat pokazowy": generuje fikcyjne badania i wysyła je do Orthanc przez DICOM.
+FROM python:3.12-slim
+RUN pip install --no-cache-dir pydicom pynetdicom numpy pylibjpeg pylibjpeg-openjpeg pyjpegls
+COPY make_demo_dataset.py /make_demo_dataset.py
+CMD ["python", "/make_demo_dataset.py", "--send", "orthanc:4242"]

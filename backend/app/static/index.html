@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PACS</title>
+<style>
+  :root { --ink: #1d2433; --muted: #5b6475; --line: #e3e5ea; --bg: #f4f5f7; --blue: #2f5fb3;
+          --red: #c0392b; --orange: #e08e0b; --green: #2e8b57; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--ink); }
+  header { background: var(--ink); color: #fff; padding: 10px 20px; display: flex; align-items: center; gap: 24px; }
+  header strong { font-size: 18px; }
+  nav { display: flex; gap: 4px; flex: 1; }
+  nav button { background: none; border: 0; color: #c9cfdb; font-size: 15px; padding: 10px 14px; border-radius: 8px; }
+  nav button.active { background: #ffffff1f; color: #fff; }
+  .pill { background: var(--red); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 12px; margin-left: 4px; }
+  main { padding: 16px 20px; }
+  .filters { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, select, textarea, button { font: inherit; }
+  input, select { padding: 8px 10px; border: 1px solid #c7ccd6; border-radius: 8px; background: #fff; }
+  button { cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid #c7ccd6; background: #fff; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.danger { background: var(--red); border-color: var(--red); color: #fff; }
+  button.small { padding: 4px 10px; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; }
+  th, td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; vertical-align: top; }
+  th { background: #eef0f4; font-weight: 600; }
+  tbody tr { cursor: pointer; }
+  tr.urgent td { background: #fff6dd; }
+  tr.critical td { background: #fbe3e1; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; background: var(--line); margin: 1px 0; }
+  .badge.urgent { background: var(--orange); color: #fff; }
+  .badge.critical { background: var(--red); color: #fff; }
+  .badge.blink { animation: blink 1s infinite; }
+  .badge.repeat { background: #7b4fb8; color: #fff; }
+  .badge.second { background: #227c9d; color: #fff; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .sla { font-size: 13px; font-weight: 600; }
+  .sla.ok { color: var(--green); } .sla.warn { color: var(--orange); } .sla.late { color: var(--red); }
+  small, .muted { color: var(--muted); }
+  #panel { position: fixed; right: 0; top: 0; bottom: 0; width: min(720px, 100%); background: #fff;
+           box-shadow: -4px 0 16px #0003; overflow: auto; display: none; z-index: 10; }
+  #panel .head { position: sticky; top: 0; background: #fff; padding: 14px 20px; border-bottom: 1px solid var(--line); z-index: 2; }
+  #panel .head h2 { margin: 6px 0; font-size: 20px; }
+  #panel .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  #panel section { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  #panel h3 { margin: 0 0 10px; font-size: 16px; }
+  textarea { width: 100%; padding: 10px; border: 1px solid #c7ccd6; border-radius: 8px; }
+  #report { height: 240px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .row > input:not([type=checkbox]), .row > select { flex: 1; min-width: 160px; }
+  .alertbox { background: #fbe3e1; border: 2px solid var(--red); border-radius: 10px; padding: 12px; }
+  .alertbox.ok { background: #e6f4ec; border-color: var(--green); }
+  .timeline { font-size: 13px; margin: 6px 0 0; padding-left: 18px; }
+  .note { border-left: 4px solid var(--blue); background: #f4f7fc; padding: 8px 10px; margin: 8px 0; font-size: 14px; border-radius: 0 8px 8px 0; }
+  .note.pilne { border-color: var(--red); background: #fdf0f0; }
+  .note.powtorz_badanie { border-color: #7b4fb8; background: #f5f0fb; }
+  .note.done { border-color: var(--green); background: #eef7f1; }
+  .note.deleted { opacity: .55; border-color: #aaa; background: #f4f4f4; }
+  .note.deleted .text { text-decoration: line-through; }
+  .note .meta { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .note .btns { float: right; display: flex; gap: 4px; }
+  .mention { color: var(--blue); font-weight: 600; }
+  .mic.on { background: var(--red); border-color: var(--red); color: #fff; }
+  .prior { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0; font-size: 14px; }
+  .prior pre { white-space: pre-wrap; font-family: inherit; margin: 6px 0 0; color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; }
+  .card .num { font-size: 28px; font-weight: 700; }
+  .bars { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+  .bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+  .bar span:first-child { width: 160px; }
+  .bar .fill { background: var(--blue); height: 14px; border-radius: 4px; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); background: #fff; border-radius: 10px; }
+  @media (max-width: 900px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<div id="demo-banner" style="display:none;background:#e08e0b;color:#fff;text-align:center;padding:6px;font-weight:600">WERSJA POKAZOWA – wszystkie badania i osoby są fikcyjne. Nie wprowadzaj danych prawdziwych pacjentów.</div>
+<header>
+  <strong>PACS</strong>
+  <nav>
+    <button data-tab="studies" class="active">Badania</button>
+    <button data-tab="inbox">Do mnie <span id="inbox-count"></span></button>
+    <button data-tab="lab">Pracownia</button>
+    <button data-tab="stats">Statystyki</button>
+    <button data-tab="staff">Personel</button>
+  </nav>
+  <span id="user"></span>
+</header>
+<main id="view"></main>
+<div id="panel"></div>
+<script>
+// ---------- narzędzia ----------
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $ = id => document.getElementById(id);
+const STATUS = {new: "nieprzypisane", assigned: "do opisu", reported: "opisane"};
+const when = d => d ? new Date(d).toLocaleString("pl-PL", {weekday: "short", day: "2-digit", month: "2-digit",
+  year: "numeric", hour: "2-digit", minute: "2-digit"}) : "";
+let me = {}, currentTab = "studies", currentStudy = null, people = {};
+// Loginy z logowania pokazujemy jako imię i nazwisko
+const who = login => esc(people[login] ?? login);
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(data.detail || r.statusText); throw new Error(data.detail); }
+  return data;
+}
+const post = (path, body) => api(path, {method: "POST", body: JSON.stringify(body ?? {})});
+
+function sla(s) {
+  if (s.status === "reported" || !s.due_at) return "";
+  const min = Math.round((new Date(s.due_at) - Date.now()) / 60000);
+  const fmt = m => m >= 1440 ? `${Math.floor(m / 1440)} d ${Math.floor(m % 1440 / 60)} h`
+                 : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+  const total = (new Date(s.due_at) - new Date(s.received_at)) / 60000;
+  if (min < 0) return `<span class="sla late">po terminie ${fmt(-min)}</span>`;
+  return `<span class="sla ${min < total * 0.2 ? "warn" : "ok"}">zostało ${fmt(min)}</span>`;
+}
+
+function badges(s) {
+  let b = "";
+  if (s.critical_unacknowledged) b += '<span class="badge critical blink">KRYTYCZNY – brak potwierdzenia</span> ';
+  else if (s.critical_finding) b += '<span class="badge critical">KRYTYCZNY</span> ';
+  else if (s.priority === "urgent") b += '<span class="badge urgent">PILNE</span> ';
+  else b += '<span class="badge">rutyna</span> ';
+  if (s.repeat_requested) b += '<span class="badge repeat">do powtórzenia</span> ';
+  if (s.second_reader && !s.second_report) b += '<span class="badge second">druga opinia</span> ';
+  return b;
+}
+
+const highlight = text => esc(text).replace(/@([\w.\-]+)/g, '<span class="mention">@$1</span>');
+
+// ---------- zakładki ----------
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  ({studies: viewStudies, inbox: viewInbox, lab: viewLab, stats: viewStats, staff: viewStaff})[tab]();
+}
+
+// ---------- lista badań ----------
+let filters = {status: "", mine: false, q: ""};
+async function viewStudies() {
+  const v = $("view");
+  if (!$("rows")) v.innerHTML = `
+    <div class="filters">
+      <select id="f-status">
+        <option value="">Wszystkie</option><option value="new">Nieprzypisane</option>
+        <option value="assigned">Do opisu</option><option value="reported">Opisane</option>
+      </select>
+      <label><input type="checkbox" id="f-mine"> Tylko moje</label>
+      <input id="f-q" placeholder="Szukaj: pacjent, PESEL/ID, badanie" style="flex:1">
+    </div>
+    <table><thead><tr><th>Priorytet</th><th>Pacjent</th><th>Badanie</th><th class="hide-sm">Przyjęto</th>
+      <th>Termin opisu</th><th class="hide-sm">Radiolog</th><th class="hide-sm">Prowadzący</th><th>Status</th><th>Uwagi</th></tr></thead>
+      <tbody id="rows"></tbody></table>`;
+  $("f-status").value = filters.status; $("f-mine").checked = filters.mine; $("f-q").value = filters.q;
+  $("f-status").onchange = e => { filters.status = e.target.value; loadStudies(); };
+  $("f-mine").onchange = e => { filters.mine = e.target.checked; loadStudies(); };
+  $("f-q").oninput = e => { filters.q = e.target.value; clearTimeout(window._qt); window._qt = setTimeout(loadStudies, 300); };
+  loadStudies();
+}
+
+async function loadStudies() {
+  const params = new URLSearchParams({status: filters.status, mine: filters.mine, q: filters.q});
+  const studies = await api("/api/studies?" + params);
+  $("rows").innerHTML = studies.length ? studies.map(s => {
+    const cls = s.critical_finding ? "critical" : s.priority === "urgent" ? "urgent" : "";
+    return `<tr class="${cls}" onclick="openStudy(${s.id})"><td>${badges(s)}</td>
+      <td><b>${esc(s.patient_name)}</b><br><small>${esc(s.patient_id)}</small></td>
+      <td>${esc(s.modality)} · ${esc(s.description)}</td>
+      <td class="hide-sm">${when(s.received_at)}</td><td>${sla(s)}</td>
+      <td class="hide-sm">${esc(s.radiologist ?? "—")}</td><td class="hide-sm">${esc(s.attending ?? "—")}</td>
+      <td>${STATUS[s.status] ?? s.status}</td><td>${s.open_notes ? `<span class="pill" style="background:var(--blue)">${s.open_notes}</span>` : ""}</td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="empty">Brak badań</td></tr>`;
+}
+
+// ---------- skrzynka "Do mnie" ----------
+async function viewInbox() {
+  const data = await api("/api/inbox");
+  updateInboxCount(data);
+  $("view").innerHTML = `
+    <h2>Wyniki krytyczne do potwierdzenia</h2>
+    ${data.critical.length ? data.critical.map(a => `
+      <div class="alertbox" style="margin-bottom:10px">
+        <b>${esc(a.study.patient_name)}</b> – ${esc(a.study.modality)} ${esc(a.study.description)}<br>
+        <small>Zgłosił ${who(a.raised_by)} · ${when(a.created_at)} · etap eskalacji: ${esc(a.level_label)}</small>
+        <p>${esc(a.note)}</p>
+        <button class="danger" onclick="ack(${a.study.id})">Przyjąłem do wiadomości</button>
+        <button onclick="openStudy(${a.study.id})">Otwórz badanie</button>
+      </div>`).join("") : '<div class="empty">Brak wyników krytycznych do potwierdzenia</div>'}
+    <h2>Uwagi do mnie</h2>
+    ${data.notes.length ? data.notes.map(n => noteHtml(n, true)).join("") : '<div class="empty">Brak nowych uwag</div>'}`;
+}
+
+function updateInboxCount(data) {
+  const n = data.critical.length + data.notes.length;
+  $("inbox-count").innerHTML = n ? `<span class="pill">${n}</span>` : "";
+}
+async function refreshInboxCount() { updateInboxCount(await api("/api/inbox")); }
+
+// ---------- pracownia ----------
+async function viewLab() {
+  const studies = (await api("/api/studies")).filter(s => s.repeat_requested);
+  const today = (await api("/api/studies")).filter(s => new Date(s.received_at).toDateString() === new Date().toDateString());
+  $("view").innerHTML = `
+    <h2>Prośby o powtórzenie badania</h2>
+    ${studies.length ? `<table><tbody>${studies.map(s => `<tr onclick="openStudy(${s.id})">
+      <td>${badges(s)}</td><td><b>${esc(s.patient_name)}</b><br><small>${esc(s.patient_id)}</small></td>
+      <td>${esc(s.modality)} · ${esc(s.description)}</td><td>${esc(s.radiologist ?? "")}</td></tr>`).join("")}</tbody></table>`
+      : '<div class="empty">Brak próśb o powtórzenie</div>'}
+    <h2>Badania przyjęte dzisiaj (${today.length})</h2>
+    ${today.length ? `<table><tbody>${today.map(s => `<tr onclick="openStudy(${s.id})">
+      <td>${badges(s)}</td><td><b>${esc(s.patient_name)}</b></td><td>${esc(s.modality)} · ${esc(s.description)}</td>
+      <td>${when(s.received_at)}</td><td>${STATUS[s.status]}</td></tr>`).join("")}</tbody></table>`
+      : '<div class="empty">Dzisiaj nie przyjęto jeszcze badań</div>'}`;
+}
+
+// ---------- statystyki ----------
+async function viewStats() {
+  const s = await api("/api/stats?days=30");
+  const card = (label, value, note = "") => `<div class="card"><small>${label}</small><div class="num">${value ?? "—"}</div><small>${note}</small></div>`;
+  const bars = (title, obj) => {
+    const max = Math.max(1, ...Object.values(obj));
+    return `<div class="bars"><h3>${title}</h3>${Object.entries(obj).map(([k, v]) =>
+      `<div class="bar"><span>${esc(k)}</span><div class="fill" style="width:${v / max * 60}%"></div><span>${v}</span></div>`).join("") || "<small>brak danych</small>"}</div>`;
+  };
+  const mins = m => m == null ? null : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+  $("view").innerHTML = `<h2>Ostatnie ${s.days} dni</h2>
+    <div class="cards">
+      ${card("Badania", s.total)}
+      ${card("Opisane w terminie", s.on_time_pct == null ? null : s.on_time_pct + "%")}
+      ${card("Po terminie (otwarte)", s.overdue_open)}
+      ${card("Mediana czasu opisu – pilne", mins(s.median_turnaround_minutes.urgent))}
+      ${card("Mediana czasu opisu – rutyna", mins(s.median_turnaround_minutes.routine))}
+      ${card("Wyniki krytyczne", s.critical.total, `potwierdzone: ${s.critical.acknowledged}, eskalowane: ${s.critical.escalated}`)}
+      ${card("Mediana czasu potwierdzenia", s.critical.median_ack_minutes == null ? null : s.critical.median_ack_minutes + " min")}
+      ${card("Prośby o powtórzenie", s.repeat_requests)}
+    </div>
+    ${bars("Nieopisane badania na radiologa", s.open_per_radiologist)}
+    ${bars("Badania wg modalności", s.by_modality)}
+    ${bars("Badania dziennie", s.per_day)}`;
+}
+
+// ---------- personel ----------
+async function viewStaff() {
+  const people = await api("/api/physicians");
+  const roles = {radiologist: "Radiolog", attending: "Lekarz prowadzący", technician: "Technik / pracownia", registration: "Rejestracja"};
+  $("view").innerHTML = `
+    <table><thead><tr><th>Imię i nazwisko</th><th>Rola</th><th>Login</th><th>E-mail / telefon</th>
+      <th>Modalności</th><th>Dyżur</th><th>Ordynator</th><th>Aktywny</th></tr></thead><tbody>
+    ${people.map(p => `<tr style="cursor:default"><td>${esc(p.name)}</td><td>${esc(p.role_label)}</td><td>${esc(p.login)}</td>
+      <td>${esc(p.email)}<br><small>${esc(p.phone)}</small></td><td>${esc(p.modalities)}</td>
+      ${["on_call", "is_head", "active"].map(f => `<td><input type="checkbox" ${p[f] ? "checked" : ""}
+        onchange='toggleStaff(${JSON.stringify(p)}, "${f}", this.checked)'></td>`).join("")}</tr>`).join("")}
+    </tbody></table>
+    <h3 style="margin-top:20px">Dodaj osobę</h3>
+    <div class="row">
+      <input id="s-name" placeholder="Imię i nazwisko"><select id="s-role">${Object.entries(roles).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+      <input id="s-login" placeholder="Login (jak przy logowaniu)">
+    </div>
+    <div class="row">
+      <input id="s-email" placeholder="E-mail"><input id="s-phone" placeholder="Telefon (SMS)">
+      <input id="s-dicom" placeholder="Nazwisko^Imię (DICOM)"><input id="s-mod" placeholder="Modalności, np. CT,MR">
+      <button class="primary" onclick="addStaff()">Dodaj</button>
+    </div>`;
+}
+async function toggleStaff(p, field, value) {
+  await api(`/api/physicians/${p.id}`, {method: "PUT", body: JSON.stringify({...p, [field]: value})});
+  viewStaff();
+}
+async function addStaff() {
+  await post("/api/physicians", {name: $("s-name").value, role: $("s-role").value, login: $("s-login").value,
+    email: $("s-email").value, phone: $("s-phone").value, dicom_name: $("s-dicom").value, modalities: $("s-mod").value});
+  viewStaff();
+}
+
+// ---------- karta badania ----------
+async function openStudy(id) {
+  const [s, notes, priors, opts, notifs] = await Promise.all([
+    api("/api/studies/" + id), api(`/api/studies/${id}/notes`), api(`/api/studies/${id}/priors`),
+    api("/api/note-options"), api(`/api/studies/${id}/notifications`)]);
+  const tpl = await api("/api/templates?modality=" + encodeURIComponent(s.modality));
+  currentStudy = s;
+  location.hash = "study-" + id;
+  const radiologists = opts.physicians.filter(p => p.role === "Radiolog" && p.name !== s.radiologist);
+  const openAlert = s.alerts.find(a => !a.acknowledged_at);
+  const p = $("panel");
+  p.style.display = "block";
+  p.innerHTML = `
+    <div class="head">
+      <button class="small" onclick="closePanel()">✕ Zamknij</button> ${badges(s)} ${sla(s)}
+      <h2>${esc(s.patient_name)} <small>${esc(s.patient_id)}</small></h2>
+      <div class="muted">${esc(s.modality)} · ${esc(s.description)} · przyjęto ${when(s.received_at)}<br>
+        Radiolog: ${esc(s.radiologist ?? "—")} · Prowadzący: ${esc(s.attending ?? "nieprzypisany")}</div>
+      <div class="actions">
+        <a href="${esc(s.viewer_url)}" target="_blank"><button class="primary">Obrazy</button></a>
+        ${openAlert ? `<button class="danger" onclick="ack(${s.id})">Przyjąłem wynik krytyczny</button>` : ""}
+        <button onclick="repeatStudy(${s.id})">Powtórz badanie</button>
+      </div>
+    </div>
+
+    ${s.alerts.length ? `<section><h3>Wynik krytyczny</h3>${s.alerts.map(a => `
+      <div class="alertbox ${a.acknowledged_at ? "ok" : ""}">
+        ${a.acknowledged_at ? `✓ Potwierdził <b>${who(a.acknowledged_by)}</b> · ${when(a.acknowledged_at)}`
+          : `<b>Czeka na potwierdzenie</b> · etap eskalacji: ${esc(a.level_label)}`}
+        <ul class="timeline"><li>${when(a.created_at)} – zgłosił ${who(a.raised_by)}: ${esc(a.note)}</li></ul>
+      </div>`).join("")}</section>` : ""}
+
+    <section><h3>Opis</h3>
+      <div class="row">
+        <select id="tpl"><option value="">— wstaw szablon —</option>${tpl.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
+        <button id="mic" class="mic" onclick="toggleDictation()">🎤 Dyktuj</button>
+        <button class="small" onclick="saveAsTemplate()">Zapisz jako szablon</button>
+      </div>
+      <textarea id="report">${esc(s.report)}</textarea>
+      <label style="display:block;margin:10px 0"><input type="checkbox" id="critical">
+        <b>Wynik zagrażający życiu</b> – natychmiast powiadom lekarza prowadzącego (z eskalacją)</label>
+      <div class="row"><button class="primary" onclick="saveReport(${s.id})">Zapisz opis</button>
+        ${s.reported_at ? `<small>Opisał ${who(s.reported_by)} · ${when(s.reported_at)}</small>` : ""}</div>
+    </section>
+
+    <section><h3>Druga opinia</h3>
+      ${s.second_reader ? `<p>Poproszono: <b>${esc(s.second_reader)}</b> – „${esc(s.second_request)}”</p>
+        ${s.second_report ? `<div class="prior"><b>Opinia</b> · ${when(s.second_reported_at)}<pre>${esc(s.second_report)}</pre></div>`
+          : `<textarea id="second" style="height:100px" placeholder="Treść drugiej opinii"></textarea>
+             <button onclick="saveSecond(${s.id})">Zapisz drugą opinię</button>`}` : ""}
+      <div class="row"><select id="second-who">${radiologists.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("")}</select>
+        <input id="second-q" placeholder="O co pytasz?"><button onclick="askSecond(${s.id})">Poproś o drugą opinię</button></div>
+    </section>
+
+    <section><h3>Poprzednie badania pacjenta (${priors.length})</h3>
+      ${priors.length ? priors.map(pr => `<div class="prior">
+        <b>${pr.study_date ? pr.study_date.replace(/(\d{4})(\d\d)(\d\d)/, "$3.$2.$1") : when(pr.received_at)}</b> · ${esc(pr.modality)} ${esc(pr.description)}
+        <a href="${esc(pr.viewer_url)}" target="_blank">obrazy</a> ·
+        <a href="${esc(s.viewer_url)},${esc(pr.study_instance_uid)}" target="_blank">porównaj z bieżącym</a>
+        ${pr.report ? `<pre>${esc(pr.report)}</pre>` : "<small> – bez opisu</small>"}</div>`).join("") : "<small>Brak wcześniejszych badań.</small>"}
+    </section>
+
+    <section><h3>Uwagi</h3>
+      <div id="note-list">${notes.map(n => noteHtml(n)).join("") || "<small>Brak uwag.</small>"}</div>
+      <div class="row">
+        <select id="note-recipient"><option value="">— do kogo —</option>
+          ${opts.groups.map(g => `<option value="g:${esc(g)}">${esc(g)}</option>`).join("")}
+          ${opts.physicians.map(p => `<option value="p:${p.id}">${esc(p.name)} (${esc(p.role)})</option>`).join("")}</select>
+        <select id="note-purpose">${Object.entries(opts.purposes).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      </div>
+      <div class="row"><input id="note-text" placeholder="Treść uwagi – @login powiadamia osobę"
+        list="logins"><button class="primary" onclick="addNote(${s.id})">Dodaj uwagę</button></div>
+      <small>Możesz oznaczyć: ${opts.physicians.filter(p => p.login).map(p => "@" + esc(p.login)).join(", ")}</small>
+    </section>
+
+    <section><h3>Kontakt z pacjentem</h3>
+      <div class="row"><input id="phone" value="${esc(s.patient_phone)}" placeholder="Telefon pacjenta">
+        <label><input type="checkbox" id="consent" ${s.patient_sms_consent ? "checked" : ""}> zgoda na SMS o gotowym wyniku</label>
+        <button onclick="saveContact(${s.id})">Zapisz</button></div>
+      <small>SMS nie zawiera żadnych danych medycznych – tylko informację, że wynik jest gotowy.</small>
+    </section>
+
+    <section><h3>Wysłane powiadomienia</h3>
+      ${notifs.length ? notifs.map(n => `<div class="muted" style="font-size:13px">${when(n.sent_at)} · ${esc(n.channel)} → ${esc(n.recipient)}
+        · ${esc(n.reason)} · ${n.success ? "✓ wysłano" : "✗ " + esc(n.error)}</div>`).join("") : "<small>Brak.</small>"}
+    </section>`;
+  $("tpl").onchange = e => {
+    const t = tpl.find(t => t.id == e.target.value);
+    if (t && (!$("report").value.trim() || confirm("Zastąpić obecny tekst szablonem?"))) $("report").value = t.body;
+    e.target.value = "";
+  };
+}
+
+function noteHtml(n, withStudy = false) {
+  const cls = [n.purpose, n.done_at ? "done" : "", n.deleted_at ? "deleted" : ""].join(" ");
+  const active = !n.deleted_at && !n.done_at;
+  return `<div class="note ${cls}">
+    ${active ? `<span class="btns"><button class="small" onclick="noteDone(${n.study_id}, ${n.id})">✓ Załatwione</button>
+      <button class="small" onclick="deleteNote(${n.study_id}, ${n.id})">Usuń</button></span>` : ""}
+    <div class="meta"><b>${who(n.author)}</b> → <b>${esc(n.recipient || "oznaczeni")}</b> · ${esc(n.purpose_label)} · ${when(n.created_at)}
+      ${withStudy ? `<br><a href="#" onclick="openStudy(${n.study_id});return false">${esc(n.patient)} – ${esc(n.study_label)}</a>` : ""}</div>
+    <div class="text">${highlight(n.text)}</div>
+    ${n.done_at ? `<div class="meta">✓ Załatwione przez ${who(n.done_by)} · ${when(n.done_at)}</div>` : ""}
+    ${n.deleted_at ? `<div class="meta">Usunięta przez ${who(n.deleted_by)} · ${when(n.deleted_at)}</div>` : ""}
+  </div>`;
+}
+
+function closePanel() { $("panel").style.display = "none"; stopDictation(); history.replaceState(null, "", " "); currentStudy = null; showTab(currentTab); }
+async function refreshStudy(id) { await openStudy(id); refreshInboxCount(); }
+
+async function ack(id) {
+  if (!confirm("Potwierdzasz, że zapoznałeś/aś się z wynikiem krytycznym i przejmujesz dalsze postępowanie?")) return;
+  await post(`/api/studies/${id}/critical/ack`);
+  currentStudy ? refreshStudy(id) : showTab(currentTab);
+  refreshInboxCount();
+}
+async function saveReport(id) {
+  const critical = $("critical").checked;
+  if (critical && !confirm("Wysłać powiadomienie o wyniku krytycznym do lekarza prowadzącego?")) return;
+  await post(`/api/studies/${id}/report`, {text: $("report").value, critical});
+  refreshStudy(id);
+}
+async function repeatStudy(id) {
+  const reason = prompt("Powód powtórzenia badania (trafi do pracowni):");
+  if (reason) { await post(`/api/studies/${id}/repeat`, {text: reason}); refreshStudy(id); }
+}
+async function askSecond(id) {
+  if (!$("second-who").value) return alert("Brak innego radiologa");
+  await post(`/api/studies/${id}/second-opinion`, {radiologist_id: Number($("second-who").value), request: $("second-q").value});
+  refreshStudy(id);
+}
+async function saveSecond(id) { await post(`/api/studies/${id}/second-report`, {text: $("second").value}); refreshStudy(id); }
+async function saveContact(id) {
+  await api(`/api/studies/${id}/patient-contact`, {method: "PATCH",
+    body: JSON.stringify({phone: $("phone").value, sms_consent: $("consent").checked})});
+  refreshStudy(id);
+}
+async function saveAsTemplate() {
+  const name = prompt("Nazwa szablonu:");
+  if (name) { await post("/api/templates", {name, modality: currentStudy.modality, body: $("report").value}); alert("Zapisano szablon"); }
+}
+async function addNote(id) {
+  const r = $("note-recipient").value;
+  const text = $("note-text").value;
+  if (!r && !/@[\w.\-]+/.test(text)) return alert("Wybierz adresata albo oznacz kogoś przez @login");
+  await post(`/api/studies/${id}/notes`, {text, purpose: $("note-purpose").value,
+    recipient_physician_id: r.startsWith("p:") ? Number(r.slice(2)) : null,
+    recipient_group: r.startsWith("g:") ? r.slice(2) : (r ? "" : "Wszyscy lekarze")});
+  refreshStudy(id);
+}
+async function noteDone(studyId, noteId) {
+  await post(`/api/studies/${studyId}/notes/${noteId}/done`);
+  currentStudy ? refreshStudy(studyId) : viewInbox();
+}
+async function deleteNote(studyId, noteId) {
+  if (!confirm("Usunąć uwagę? Zostanie ślad, kto i kiedy ją usunął.")) return;
+  await api(`/api/studies/${studyId}/notes/${noteId}`, {method: "DELETE"});
+  currentStudy ? refreshStudy(studyId) : viewInbox();
+}
+
+// ---------- dyktowanie głosem ----------
+let recognition = null;
+function toggleDictation() { recognition ? stopDictation() : startDictation(); }
+function startDictation() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return alert("Ta przeglądarka nie obsługuje dyktowania. Na iPadzie możesz użyć mikrofonu na klawiaturze.");
+  recognition = new SR();
+  recognition.lang = "pl-PL"; recognition.continuous = true; recognition.interimResults = false;
+  recognition.onresult = e => {
+    const ta = $("report");
+    for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) {
+      let text = e.results[i][0].transcript.trim()
+        .replace(/\s*nowa linia\s*/gi, "\n").replace(/\s*kropka\b/gi, ".").replace(/\s*przecinek\b/gi, ",");
+      const pos = ta.selectionStart;
+      const sep = pos > 0 && !/\s$/.test(ta.value.slice(0, pos)) ? " " : "";
+      ta.setRangeText(sep + text, pos, ta.selectionEnd, "end");
+    }
+  };
+  recognition.onend = () => { if (recognition) recognition.start(); };
+  recognition.start();
+  $("mic").classList.add("on"); $("mic").textContent = "■ Zatrzymaj";
+}
+function stopDictation() {
+  if (!recognition) return;
+  const r = recognition; recognition = null; r.stop();
+  if ($("mic")) { $("mic").classList.remove("on"); $("mic").textContent = "🎤 Dyktuj"; }
+}
+
+// ---------- start ----------
+api("/api/me").then(u => { me = u; if (u.demo) $("demo-banner").style.display = "block"; $("user").textContent = u.role_label ? `${u.name} · ${u.role_label}` : u.name; });
+api("/api/note-options").then(o => {
+  people = Object.fromEntries(o.physicians.filter(p => p.login).map(p => [p.login, p.name]));
+  showTab("studies");
+});
+refreshInboxCount();
+const openFromHash = () => {
+  const id = Number(location.hash.slice(7));
+  if (location.hash.startsWith("#study-") && id !== currentStudy?.id) openStudy(id);
+};
+window.addEventListener("hashchange", openFromHash);
+openFromHash();
+setInterval(() => { if (!currentStudy) showTab(currentTab); refreshInboxCount(); }, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Ochrona przed zgadywaniem haseł i zalewaniem serwera. Przeglądarka obrazów pobiera setki plików naraz,
+# dlatego duży bufor; na serwerze publicznym dodatkowo fail2ban na nieudane logowania (README).
+limit_req_zone $binary_remote_addr zone=perip:10m rate=30r/s;
+
+server {
+    limit_req zone=perip burst=1000 nodelay;
+    limit_req_status 429;
+    listen 80;
+    client_max_body_size 2g;
+
+    # Każdy użytkownik loguje się własnym kontem (htpasswd) - login trafia do dziennika audytu.
+    auth_basic "PACS - dostep wewnetrzny";
+    auth_basic_user_file /etc/nginx/htpasswd;
+
+    # Orthanc: przeglądarka OHIF i DICOMweb. Plugin OHIF ma na sztywno ścieżkę /ohif/,
+    # więc obie usługi muszą być pod tymi samymi ścieżkami co w Orthanc.
+    # Nginx podmienia nagłówek na konto techniczne Orthanc.
+    location ~ ^/(ohif|dicom-web)/ {
+        proxy_pass http://orthanc:8042;
+        proxy_set_header Authorization "Basic ${ORTHANC_BASIC_AUTH}";
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        proxy_pass http://backend:8000;
+        proxy_set_header X-Remote-User $remote_user;
+        proxy_set_header Host $host;
+    }
+}
