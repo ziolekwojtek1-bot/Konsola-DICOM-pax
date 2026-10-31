@@ -1,0 +1,2 @@
+# Konsola-DICOM-pax
+Aplikacja
